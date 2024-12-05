@@ -1,0 +1,42 @@
+# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+
+name: PR test
+
+on:
+  pull_request_target:
+    types: [assigned, opened, synchronize, reopened]
+    branches: [master]
+    paths: ['storefront/**']
+
+jobs:
+  lint-storefront:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+        node-version: [20.x, 22.x]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+          cache-dependency-path: 'storefront/yarn.lock'
+      - run: yarn install --frozen-lockfile
+        working-directory: storefront
+      - run: yarn lint
+        working-directory: storefront
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_MEDUSA_BACKEND_URL: ${{ secrets.NEXT_PUBLIC_MEDUSA_BACKEND_URL }}
+          NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_STRIPE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_KEY }}
+          REVALIDATE_SECRET: ${{ secrets.REVALIDATE_SECRET }}
+          DISALLOW_ROBOTS: true
+          NEXT_PUBLIC_DEFAULT_REGION: us
+          NEXT_PUBLIC_FEATURE_SEARCH_ENABLED: false
+          NEXT_PUBLIC_BASE_URL: https://fashion-starter.agilo.com

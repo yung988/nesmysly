@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: medusa
+    volumes:
+      - medusa-postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    ports:
+      - 9090:9000
+      - 9001:9001
+    volumes:
+      - medusa-minio-data:/data
+    environment:
+      MINIO_ROOT_USER: medusaminio
+      MINIO_ROOT_PASSWORD: medusaminio
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  createbuckets:
+    image: minio/mc:RELEASE.2024-10-08T09-37-26Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set myminio http://minio:9000 medusaminio medusaminio;
+      /usr/bin/mc mb myminio/medusa;
+      /usr/bin/mc anonymous set public myminio/medusa;
+      exit 0;
+      "
+
+volumes:
+  medusa-postgres-data:
+  medusa-minio-data:
